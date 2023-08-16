@@ -1,7 +1,5 @@
 # mson-mysql-filter
 
-# TODO
-
 ## protocol
 
 1. decode 
