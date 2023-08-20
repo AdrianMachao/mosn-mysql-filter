@@ -86,6 +86,7 @@ const (
 	Transcoder                  = "transcoder"
 	GRPC_NETWORK_FILTER         = "grpc"
 	TUNNEL                      = "tunnel"
+	Mysql                       = "mysql"
 )
 
 // Stream Filter's Type
