@@ -5,40 +5,54 @@ import (
 	"mosn.io/mosn/pkg/types"
 )
 
+//type DecodeFactoryImpl struct {
+//	DecoderFactory
+//}
+//
+//type DecoderFactory interface {
+//	create(callbacks *DecoderCallbacks) *Decoder
+//}
+
 type Decoder struct {
-	attributes_ map[string]string
+	attributes map[string]string
 }
 
 type DecoderImpl struct {
-	callBacks DecoderCallbacks
+	Decoder
+	callBacks *DecoderCallbacks
 	session   Session
 }
 
 type DecoderCallbacks interface {
-	onNewMessage()
-	onServerGreeting()
-	onClientLogin()
-	onClientLoginResponse()
-	onClientSwitchResponse()
-	onMoreClientLoginResponse()
-	onCommand()
-	onCommandResponse()
+	OnNewMessage()
+	OnServerGreeting()
+	OnClientLogin()
+	OnClientLoginResponse()
+	OnClientSwitchResponse()
+	OnMoreClientLoginResponse()
+	OnCommand()
+	OnCommandResponse()
 }
 
 func (d *DecoderImpl) OnData(data types.IoBuffer) {
-	d.decode(data)
+	for data.Len() != 0 && d.decode(data) {
+	}
 }
 
-func (d *DecoderImpl) decode(data types.IoBuffer) DecodeStatus {
+func (d *DecoderImpl) decode(data types.IoBuffer) bool {
 	// check frame size
 	payLoadLen := binary.LittleEndian.Uint32(data.Bytes())
 	if data.Len() >= int(payLoadLen) {
-		return 0
+		return true
 	}
 
-	return 0
+	return false
 }
 
 func (d *DecoderImpl) parseMessage(data types.IoBuffer, seq uint8, len uint32) {
 
 }
+
+//func (dfi *DecodeFactoryImpl) create(callbacks *DecoderCallbacks) *Decoder {
+//	return nil
+//}
