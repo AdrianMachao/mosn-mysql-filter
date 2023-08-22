@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"encoding/binary"
+
 	"mosn.io/mosn/pkg/types"
 )
 

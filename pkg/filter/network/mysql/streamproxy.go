@@ -29,7 +29,7 @@ import (
 	v2 "mosn.io/mosn/pkg/config/v2"
 	"mosn.io/mosn/pkg/log"
 	"mosn.io/mosn/pkg/network"
-	"mosn.io/mosn/pkg/protocol/mysql"
+	mysql "mosn.io/mosn/pkg/protocol/mysql"
 	"mosn.io/mosn/pkg/types"
 	"mosn.io/mosn/pkg/upstream/cluster"
 	"mosn.io/pkg/buffer"
@@ -46,16 +46,13 @@ type proxy struct {
 	upstreamCallbacks   UpstreamCallbacks
 	clusterInfo         types.ClusterInfo
 	downstreamCallbacks DownstreamCallbacks
-	network             string
-	decoder             mysql.DecoderImpl
-
-	upstreamConnecting bool
-
-	accessLogs []api.AccessLog
-	ctx        context.Context
+	decoder             *mysql.DecoderImpl
+	upstreamConnecting  bool
+	accessLogs          []api.AccessLog
+	ctx                 context.Context
 }
 
-func NewProxy(ctx context.Context, config *v2.StreamProxy, net string) Proxy {
+func NewProxy(ctx context.Context, config *v2.StreamProxy) Proxy {
 	alv, _ := variable.Get(ctx, types.VariableAccessLogs)
 	p := &proxy{
 		config:         NewProxyConfig(config),
@@ -63,7 +60,6 @@ func NewProxy(ctx context.Context, config *v2.StreamProxy, net string) Proxy {
 		requestInfo:    network.NewRequestInfo(),
 		accessLogs:     alv.([]api.AccessLog),
 		ctx:            ctx,
-		network:        net,
 	}
 
 	p.upstreamCallbacks = &upstreamCallbacks{
@@ -78,10 +74,12 @@ func NewProxy(ctx context.Context, config *v2.StreamProxy, net string) Proxy {
 
 func (p *proxy) OnData(buffer buffer.IoBuffer) api.FilterStatus {
 	if log.DefaultLogger.GetLogLevel() >= log.DEBUG {
-		log.DefaultLogger.Debugf("[%s proxy] [ondata] read data , len = %v, local addr:%s, upstream addr:%s",
-			p.network, buffer.Len(), p.readCallbacks.Connection().LocalAddr().String(), p.upstreamConnection.RemoteAddr().String())
+		log.DefaultLogger.Debugf("[mysql proxy] [ondata] read data , len = %v, local addr:%s, upstream addr:%s",
+			buffer.Len(), p.readCallbacks.Connection().LocalAddr().String(), p.upstreamConnection.RemoteAddr().String())
 	}
 	bytesRecved := p.requestInfo.BytesReceived() + uint64(buffer.Len())
+	// decode
+
 	p.requestInfo.SetBytesReceived(bytesRecved)
 
 	p.upstreamConnection.Write(buffer.Clone())
@@ -91,18 +89,18 @@ func (p *proxy) OnData(buffer buffer.IoBuffer) api.FilterStatus {
 
 func (p *proxy) doDecode(buffer buffer.IoBuffer) {
 	// TODO Metadata
-
 	if p.decoder == nil {
-		p.decoder = mysql.DecoderImpl{}
+		p.decoder = &mysql.DecoderImpl{}
 	}
 
 	p.decoder.OnData(buffer.Clone())
+
 	buffer.Drain(buffer.Len())
 }
 
 func (p *proxy) OnNewConnection() api.FilterStatus {
 	if log.DefaultLogger.GetLogLevel() >= log.DEBUG {
-		log.DefaultLogger.Debugf("[%s proxy] [new conn] accept new connection", p.network)
+		log.DefaultLogger.Debugf("[mysql proxy] [new conn] accept new connection")
 	}
 	return p.initializeUpstreamConnection()
 }
@@ -120,12 +118,7 @@ func (p *proxy) InitializeReadFilterCallbacks(cb api.ReadFilterCallbacks) {
 }
 
 func (p *proxy) getUpstreamConnection(ctx types.LoadBalancerContext, snapshot types.ClusterSnapshot) types.CreateConnectionData {
-	switch p.network {
-	case "udp":
-		return p.clusterManager.UDPConnForCluster(ctx, snapshot)
-	default:
-		return p.clusterManager.TCPConnForCluster(ctx, snapshot)
-	}
+	return p.clusterManager.TCPConnForCluster(ctx, snapshot)
 }
 
 const defaultConnectRetryTimes = 3
@@ -161,7 +154,7 @@ func (p *proxy) initializeUpstreamConnection() api.FilterStatus {
 
 	retryTime := clusterSnapshot.HostNum(nil)
 	if retryTime == 0 {
-		log.DefaultLogger.Errorf("%s cluster: %s proxy connect retryTime is 0", p.network, clusterSnapshot.ClusterInfo().Name())
+		log.DefaultLogger.Errorf("mysql cluster: %s proxy connect retryTime is 0", clusterSnapshot.ClusterInfo().Name())
 	}
 	if retryTime > defaultConnectRetryTimes {
 		retryTime = defaultConnectRetryTimes
@@ -179,7 +172,7 @@ func (p *proxy) initializeUpstreamConnection() api.FilterStatus {
 		p.upstreamConnection = upstreamConnection
 		if err := upstreamConnection.Connect(); err != nil {
 			p.clusterInfo.Stats().UpstreamConnectionRetry.Inc(1)
-			log.DefaultLogger.Errorf("%s proxy connect to upstream failed, err: %v", p.network, err)
+			log.DefaultLogger.Errorf("mysql proxy connect to upstream failed, err: %v", err)
 			continue
 		}
 		connected = true
@@ -222,7 +215,7 @@ func (p *proxy) onInitFailure(reason UpstreamFailureReason) {
 }
 
 func (p *proxy) onUpstreamData(buffer types.IoBuffer) {
-	log.DefaultLogger.Tracef("%s Proxy :: read upstream data , len = %v", p.network, buffer.Len())
+	log.DefaultLogger.Tracef("mysql Proxy :: read upstream data , len = %v", buffer.Len())
 	bytesSent := p.requestInfo.BytesSent() + uint64(buffer.Len())
 	p.requestInfo.SetBytesSent(bytesSent)
 
@@ -299,10 +292,6 @@ func (p *proxy) onUpstreamEventStats(event api.ConnectionEvent) {
 }
 
 func (p *proxy) onConnectionSuccess() {
-	// In udp proxy, each upstream connection needs a idle checker
-	if p.network == "udp" {
-		p.upstreamConnection.SetIdleTimeout(p.config.GetReadTimeout("udp"), p.config.GetIdleTimeout("udp"))
-	}
 	log.DefaultLogger.Debugf("new upstream connection %d created", p.upstreamConnection.ID())
 }
 
@@ -473,19 +462,12 @@ func (pc *proxyConfig) GetIdleTimeout(network string) time.Duration {
 	if pc.idleTimeout != nil && *pc.idleTimeout > 0 {
 		return *pc.idleTimeout
 	}
-	if network == "udp" {
-		return types.DefaultUDPIdleTimeout
-	}
+
 	return types.DefaultIdleTimeout
 }
 
 func (pc *proxyConfig) GetReadTimeout(network string) time.Duration {
-	switch network {
-	case "udp":
-		return types.DefaultUDPReadTimeout
-	default:
-		return types.DefaultConnReadTimeout
-	}
+	return types.DefaultConnReadTimeout
 }
 
 func (pc *proxyConfig) GetRouteFromEntries(connection api.Connection) string {
