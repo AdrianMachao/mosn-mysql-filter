@@ -21,15 +21,13 @@ import (
 	"context"
 	"net"
 	"reflect"
-	"strconv"
-	"strings"
 	"time"
 
 	"mosn.io/api"
 	v2 "mosn.io/mosn/pkg/config/v2"
 	"mosn.io/mosn/pkg/log"
 	"mosn.io/mosn/pkg/network"
-	"mosn.io/mosn/pkg/protocol/mysql"
+	mysql "mosn.io/mosn/pkg/protocol/mysql"
 	"mosn.io/mosn/pkg/types"
 	"mosn.io/mosn/pkg/upstream/cluster"
 	"mosn.io/pkg/buffer"
@@ -46,16 +44,13 @@ type proxy struct {
 	upstreamCallbacks   UpstreamCallbacks
 	clusterInfo         types.ClusterInfo
 	downstreamCallbacks DownstreamCallbacks
-	network             string
-	decoder             mysql.DecoderImpl
-
-	upstreamConnecting bool
-
-	accessLogs []api.AccessLog
-	ctx        context.Context
+	decoder             *mysql.DecoderImpl
+	upstreamConnecting  bool
+	accessLogs          []api.AccessLog
+	ctx                 context.Context
 }
 
-func NewProxy(ctx context.Context, config *v2.StreamProxy, net string) Proxy {
+func NewProxy(ctx context.Context, config *v2.StreamProxy) Proxy {
 	alv, _ := variable.Get(ctx, types.VariableAccessLogs)
 	p := &proxy{
 		config:         NewProxyConfig(config),
@@ -63,7 +58,6 @@ func NewProxy(ctx context.Context, config *v2.StreamProxy, net string) Proxy {
 		requestInfo:    network.NewRequestInfo(),
 		accessLogs:     alv.([]api.AccessLog),
 		ctx:            ctx,
-		network:        net,
 	}
 
 	p.upstreamCallbacks = &upstreamCallbacks{
@@ -78,31 +72,33 @@ func NewProxy(ctx context.Context, config *v2.StreamProxy, net string) Proxy {
 
 func (p *proxy) OnData(buffer buffer.IoBuffer) api.FilterStatus {
 	if log.DefaultLogger.GetLogLevel() >= log.DEBUG {
-		log.DefaultLogger.Debugf("[%s proxy] [ondata] read data , len = %v, local addr:%s, upstream addr:%s",
-			p.network, buffer.Len(), p.readCallbacks.Connection().LocalAddr().String(), p.upstreamConnection.RemoteAddr().String())
+		log.DefaultLogger.Debugf("[mysql proxy] [ondata] read data , len = %v, local addr:%s, upstream addr:%s",
+			buffer.Len(), p.readCallbacks.Connection().LocalAddr().String(), p.upstreamConnection.RemoteAddr().String())
 	}
 	bytesRecved := p.requestInfo.BytesReceived() + uint64(buffer.Len())
 	p.requestInfo.SetBytesReceived(bytesRecved)
 
+	// decode
 	p.upstreamConnection.Write(buffer.Clone())
 
+	buffer.Drain(buffer.Len())
 	return api.Stop
 }
 
 func (p *proxy) doDecode(buffer buffer.IoBuffer) {
 	// TODO Metadata
-
 	if p.decoder == nil {
-		p.decoder = mysql.DecoderImpl{}
+		p.decoder = &mysql.DecoderImpl{}
 	}
 
 	p.decoder.OnData(buffer.Clone())
+
 	buffer.Drain(buffer.Len())
 }
 
 func (p *proxy) OnNewConnection() api.FilterStatus {
 	if log.DefaultLogger.GetLogLevel() >= log.DEBUG {
-		log.DefaultLogger.Debugf("[%s proxy] [new conn] accept new connection", p.network)
+		log.DefaultLogger.Debugf("[mysql proxy] [new conn] accept new connection")
 	}
 	return p.initializeUpstreamConnection()
 }
@@ -120,12 +116,7 @@ func (p *proxy) InitializeReadFilterCallbacks(cb api.ReadFilterCallbacks) {
 }
 
 func (p *proxy) getUpstreamConnection(ctx types.LoadBalancerContext, snapshot types.ClusterSnapshot) types.CreateConnectionData {
-	switch p.network {
-	case "udp":
-		return p.clusterManager.UDPConnForCluster(ctx, snapshot)
-	default:
-		return p.clusterManager.TCPConnForCluster(ctx, snapshot)
-	}
+	return p.clusterManager.TCPConnForCluster(ctx, snapshot)
 }
 
 const defaultConnectRetryTimes = 3
@@ -161,7 +152,7 @@ func (p *proxy) initializeUpstreamConnection() api.FilterStatus {
 
 	retryTime := clusterSnapshot.HostNum(nil)
 	if retryTime == 0 {
-		log.DefaultLogger.Errorf("%s cluster: %s proxy connect retryTime is 0", p.network, clusterSnapshot.ClusterInfo().Name())
+		log.DefaultLogger.Errorf("mysql cluster: %s proxy connect retryTime is 0", clusterSnapshot.ClusterInfo().Name())
 	}
 	if retryTime > defaultConnectRetryTimes {
 		retryTime = defaultConnectRetryTimes
@@ -179,7 +170,7 @@ func (p *proxy) initializeUpstreamConnection() api.FilterStatus {
 		p.upstreamConnection = upstreamConnection
 		if err := upstreamConnection.Connect(); err != nil {
 			p.clusterInfo.Stats().UpstreamConnectionRetry.Inc(1)
-			log.DefaultLogger.Errorf("%s proxy connect to upstream failed, err: %v", p.network, err)
+			log.DefaultLogger.Errorf("mysql proxy connect to upstream failed, err: %v", err)
 			continue
 		}
 		connected = true
@@ -222,7 +213,7 @@ func (p *proxy) onInitFailure(reason UpstreamFailureReason) {
 }
 
 func (p *proxy) onUpstreamData(buffer types.IoBuffer) {
-	log.DefaultLogger.Tracef("%s Proxy :: read upstream data , len = %v", p.network, buffer.Len())
+	log.DefaultLogger.Tracef("mysql Proxy :: read upstream data , len = %v", buffer.Len())
 	bytesSent := p.requestInfo.BytesSent() + uint64(buffer.Len())
 	p.requestInfo.SetBytesSent(bytesSent)
 
@@ -299,10 +290,6 @@ func (p *proxy) onUpstreamEventStats(event api.ConnectionEvent) {
 }
 
 func (p *proxy) onConnectionSuccess() {
-	// In udp proxy, each upstream connection needs a idle checker
-	if p.network == "udp" {
-		p.upstreamConnection.SetIdleTimeout(p.config.GetReadTimeout("udp"), p.config.GetIdleTimeout("udp"))
-	}
 	log.DefaultLogger.Debugf("new upstream connection %d created", p.upstreamConnection.ID())
 }
 
@@ -338,109 +325,109 @@ type proxyConfig struct {
 	routes             []*route
 }
 
-type IpRangeList struct {
-	cidrRanges []v2.CidrRange
-}
+// type IpRangeList struct {
+// 	cidrRanges []v2.CidrRange
+// }
 
-func (ipList *IpRangeList) Contains(address net.Addr) bool {
-	var ip net.IP
-	switch address.Network() {
-	case "tcp":
-		if tcpAddr, ok := address.(*net.TCPAddr); ok {
-			ip = tcpAddr.IP
-		}
-	case "udp":
-		if udpAddr, ok1 := address.(*net.UDPAddr); ok1 {
-			ip = udpAddr.IP
-		}
-	default:
-		return false
-	}
+// func (ipList *IpRangeList) Contains(address net.Addr) bool {
+// 	var ip net.IP
+// 	switch address.Network() {
+// 	case "tcp":
+// 		if tcpAddr, ok := address.(*net.TCPAddr); ok {
+// 			ip = tcpAddr.IP
+// 		}
+// 	case "udp":
+// 		if udpAddr, ok1 := address.(*net.UDPAddr); ok1 {
+// 			ip = udpAddr.IP
+// 		}
+// 	default:
+// 		return false
+// 	}
 
-	log.DefaultLogger.Tracef("IpRangeList check ip = %v,address = %v", ip, address)
-	if ip != nil {
-		for _, cidrRange := range ipList.cidrRanges {
-			log.DefaultLogger.Tracef("check CidrRange = %v,ip = %v", cidrRange, ip)
-			if cidrRange.IsInRange(ip) {
-				return true
-			}
-		}
-	}
-	return false
-}
+// 	log.DefaultLogger.Tracef("IpRangeList check ip = %v,address = %v", ip, address)
+// 	if ip != nil {
+// 		for _, cidrRange := range ipList.cidrRanges {
+// 			log.DefaultLogger.Tracef("check CidrRange = %v,ip = %v", cidrRange, ip)
+// 			if cidrRange.IsInRange(ip) {
+// 				return true
+// 			}
+// 		}
+// 	}
+// 	return false
+// }
 
-type PortRangeList struct {
-	portList []PortRange
-}
+// type PortRangeList struct {
+// 	portList []PortRange
+// }
 
-func (pr *PortRangeList) Contains(address net.Addr) bool {
-	var port = 0
+// func (pr *PortRangeList) Contains(address net.Addr) bool {
+// 	var port = 0
 
-	switch address.Network() {
-	case "tcp":
-		if tcpAddr, ok := address.(*net.TCPAddr); ok {
-			port = tcpAddr.Port
-		}
-	case "udp":
-		if udpAddr, ok1 := address.(*net.UDPAddr); ok1 {
-			port = udpAddr.Port
-		}
-	default:
-		return false
-	}
+// 	switch address.Network() {
+// 	case "tcp":
+// 		if tcpAddr, ok := address.(*net.TCPAddr); ok {
+// 			port = tcpAddr.Port
+// 		}
+// 	case "udp":
+// 		if udpAddr, ok1 := address.(*net.UDPAddr); ok1 {
+// 			port = udpAddr.Port
+// 		}
+// 	default:
+// 		return false
+// 	}
 
-	if port != 0 {
-		log.DefaultLogger.Tracef("PortRangeList check port = %v , address = %v", port, address)
-		for _, portRange := range pr.portList {
-			log.DefaultLogger.Tracef("check port range , port range = %v , port = %v", portRange, port)
-			if port >= portRange.min && port <= portRange.max {
-				return true
-			}
-		}
-	}
-	return false
-}
+// 	if port != 0 {
+// 		log.DefaultLogger.Tracef("PortRangeList check port = %v , address = %v", port, address)
+// 		for _, portRange := range pr.portList {
+// 			log.DefaultLogger.Tracef("check port range , port range = %v , port = %v", portRange, port)
+// 			if port >= portRange.min && port <= portRange.max {
+// 				return true
+// 			}
+// 		}
+// 	}
+// 	return false
+// }
 
-type PortRange struct {
-	min int
-	max int
-}
+// type PortRange struct {
+// 	min int
+// 	max int
+// }
 
-func ParsePortRangeList(ports string) PortRangeList {
-	var portList []PortRange
-	if ports == "" {
-		return PortRangeList{portList}
-	}
-	for _, portItem := range strings.Split(ports, ",") {
-		if strings.Contains(portItem, "-") {
-			pieces := strings.Split(portItem, "-")
-			min, err := strconv.Atoi(pieces[0])
-			max, err := strconv.Atoi(pieces[1])
-			if err != nil {
-				log.DefaultLogger.Errorf("parse port range list fail, invalid port %v", portItem)
-				continue
-			}
-			pRange := PortRange{min: min, max: max}
-			portList = append(portList, pRange)
-		} else {
-			port, err := strconv.Atoi(portItem)
-			if err != nil {
-				log.DefaultLogger.Errorf("parse port range list fail, invalid port %v", portItem)
-				continue
-			}
-			pRange := PortRange{min: port, max: port}
-			portList = append(portList, pRange)
-		}
-	}
-	return PortRangeList{portList}
-}
+// func ParsePortRangeList(ports string) PortRangeList {
+// 	var portList []PortRange
+// 	if ports == "" {
+// 		return PortRangeList{portList}
+// 	}
+// 	for _, portItem := range strings.Split(ports, ",") {
+// 		if strings.Contains(portItem, "-") {
+// 			pieces := strings.Split(portItem, "-")
+// 			min, err := strconv.Atoi(pieces[0])
+// 			max, err := strconv.Atoi(pieces[1])
+// 			if err != nil {
+// 				log.DefaultLogger.Errorf("parse port range list fail, invalid port %v", portItem)
+// 				continue
+// 			}
+// 			pRange := PortRange{min: min, max: max}
+// 			portList = append(portList, pRange)
+// 		} else {
+// 			port, err := strconv.Atoi(portItem)
+// 			if err != nil {
+// 				log.DefaultLogger.Errorf("parse port range list fail, invalid port %v", portItem)
+// 				continue
+// 			}
+// 			pRange := PortRange{min: port, max: port}
+// 			portList = append(portList, pRange)
+// 		}
+// 	}
+// 	return PortRangeList{portList}
+// }
 
 type route struct {
-	clusterName      string
-	sourceAddrs      IpRangeList
-	destinationAddrs IpRangeList
-	sourcePort       PortRangeList
-	destinationPort  PortRangeList
+	clusterName string
+	// sourceAddrs      IpRangeList
+	// destinationAddrs IpRangeList
+	// sourcePort       PortRangeList
+	// destinationPort  PortRangeList
 }
 
 func NewProxyConfig(config *v2.StreamProxy) ProxyConfig {
@@ -449,11 +436,11 @@ func NewProxyConfig(config *v2.StreamProxy) ProxyConfig {
 	log.DefaultLogger.Tracef("Stream Proxy :: New Proxy Config = %v", config)
 	for _, routeConfig := range config.Routes {
 		route := &route{
-			clusterName:      routeConfig.Cluster,
-			sourceAddrs:      IpRangeList{routeConfig.SourceAddrs},
-			destinationAddrs: IpRangeList{routeConfig.DestinationAddrs},
-			sourcePort:       ParsePortRangeList(routeConfig.SourcePort),
-			destinationPort:  ParsePortRangeList(routeConfig.DestinationPort),
+			clusterName: routeConfig.Cluster,
+			// sourceAddrs:      IpRangeList{routeConfig.SourceAddrs},
+			// destinationAddrs: IpRangeList{routeConfig.DestinationAddrs},
+			// sourcePort:       ParsePortRangeList(routeConfig.SourcePort),
+			// destinationPort:  ParsePortRangeList(routeConfig.DestinationPort),
 		}
 		log.DefaultLogger.Tracef("Stream Proxy add one route : %v", route)
 
@@ -473,19 +460,12 @@ func (pc *proxyConfig) GetIdleTimeout(network string) time.Duration {
 	if pc.idleTimeout != nil && *pc.idleTimeout > 0 {
 		return *pc.idleTimeout
 	}
-	if network == "udp" {
-		return types.DefaultUDPIdleTimeout
-	}
+
 	return types.DefaultIdleTimeout
 }
 
 func (pc *proxyConfig) GetReadTimeout(network string) time.Duration {
-	switch network {
-	case "udp":
-		return types.DefaultUDPReadTimeout
-	default:
-		return types.DefaultConnReadTimeout
-	}
+	return types.DefaultConnReadTimeout
 }
 
 func (pc *proxyConfig) GetRouteFromEntries(connection api.Connection) string {
@@ -497,18 +477,18 @@ func (pc *proxyConfig) GetRouteFromEntries(connection api.Connection) string {
 	log.DefaultLogger.Tracef("Stream Proxy get route from entries , connection = %v", connection)
 	for _, r := range pc.routes {
 		log.DefaultLogger.Tracef("Stream Proxy check one route = %v", r)
-		if !r.sourceAddrs.Contains(connection.RemoteAddr()) {
-			continue
-		}
-		if !r.sourcePort.Contains(connection.RemoteAddr()) {
-			continue
-		}
-		if !r.destinationAddrs.Contains(connection.LocalAddr()) {
-			continue
-		}
-		if !r.destinationPort.Contains(connection.LocalAddr()) {
-			continue
-		}
+		// if !r.sourceAddrs.Contains(connection.RemoteAddr()) {
+		// 	continue
+		// }
+		// if !r.sourcePort.Contains(connection.RemoteAddr()) {
+		// 	continue
+		// }
+		// if !r.destinationAddrs.Contains(connection.LocalAddr()) {
+		// 	continue
+		// }
+		// if !r.destinationPort.Contains(connection.LocalAddr()) {
+		// 	continue
+		// }
 		return r.clusterName
 	}
 	log.DefaultLogger.Warnf("Stream Proxy find no cluster , connection = %v", connection)

@@ -27,24 +27,24 @@ import (
 )
 
 func init() {
-	api.RegisterNetwork(v2.Mysql, CreateTCPProxyFactory)
+	api.RegisterNetwork(v2.Mysql, CreateMysqlProxyFactory)
 }
 
-type tcpProxyFilterConfigFactory struct {
+type mysqlFilterConfigFactory struct {
 	Proxy *v2.StreamProxy
 }
 
-func (f *tcpProxyFilterConfigFactory) CreateFilterChain(context context.Context, callbacks api.NetWorkFilterChainFactoryCallbacks) {
-	rf := NewProxy(context, f.Proxy, "tcp")
+func (f *mysqlFilterConfigFactory) CreateFilterChain(context context.Context, callbacks api.NetWorkFilterChainFactoryCallbacks) {
+	rf := NewProxy(context, f.Proxy)
 	callbacks.AddReadFilter(rf)
 }
 
-func CreateTCPProxyFactory(conf map[string]interface{}) (api.NetworkFilterChainFactory, error) {
+func CreateMysqlProxyFactory(conf map[string]interface{}) (api.NetworkFilterChainFactory, error) {
 	p, err := ParseStreamProxy(conf)
 	if err != nil {
 		return nil, err
 	}
-	return &tcpProxyFilterConfigFactory{
+	return &mysqlFilterConfigFactory{
 		Proxy: p,
 	}, nil
 }
