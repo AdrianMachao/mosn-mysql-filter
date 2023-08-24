@@ -4,7 +4,7 @@ type Session struct {
 	state State
 }
 
-type State int
+type State uint8
 
 const (
 	Init State = iota
@@ -28,7 +28,7 @@ func (s Session) setState(state State) {
 }
 
 func (s Session) getState() State {
-	return Init
+	return s.state
 }
 
 func (s Session) getExpectedSeq() uint8 {

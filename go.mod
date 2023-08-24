@@ -26,6 +26,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/juju/errors v1.0.0
 	github.com/lestrrat/go-jwx v0.0.0-20180221005942-b7d4802280ae
+	github.com/mattn/go-gnulib v0.0.0-20150723062628-747faa225a80
 	github.com/miekg/dns v1.1.50
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/opentrx/seata-golang/v2 v2.0.4
