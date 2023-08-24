@@ -15,7 +15,7 @@
                             "tls_context": {},
                             "filters": [
                                 {
-                                    "type": "mysql-proxy",
+                                    "type": "mysql_proxy",
                                     "config": {
                                         "cluster": "mysqlCluster",
                                         "routes": [
@@ -40,7 +40,7 @@
                 "lb_type": "LB_RANDOM",
                 "max_request_per_conn": 1024,
                 "conn_buffer_limit_bytes": 32768,
-                "hosts": [{ "address": "127.0.0.1:3306" }]
+                "hosts": [{ "address": "172.17.119.211:30306" }]
             }
         ]
     },

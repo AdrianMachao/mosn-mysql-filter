@@ -37,9 +37,6 @@ func (sg *ServerGreeting) getAuthPluginData() []uint8 {
 	return nil
 }
 
-func (sg *ServerGreeting) setProtocol() {
-}
-
 func (sg *ServerGreeting) setProtocol(protocol uint8) {
 }
 

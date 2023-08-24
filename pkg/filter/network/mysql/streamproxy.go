@@ -76,12 +76,12 @@ func (p *proxy) OnData(buffer buffer.IoBuffer) api.FilterStatus {
 			buffer.Len(), p.readCallbacks.Connection().LocalAddr().String(), p.upstreamConnection.RemoteAddr().String())
 	}
 	bytesRecved := p.requestInfo.BytesReceived() + uint64(buffer.Len())
-	// decode
-
 	p.requestInfo.SetBytesReceived(bytesRecved)
 
+	// decode
 	p.upstreamConnection.Write(buffer.Clone())
 
+	buffer.Drain(buffer.Len())
 	return api.Stop
 }
 
@@ -388,10 +388,10 @@ type proxyConfig struct {
 // 	return false
 // }
 
-type PortRange struct {
-	min int
-	max int
-}
+// type PortRange struct {
+// 	min int
+// 	max int
+// }
 
 // func ParsePortRangeList(ports string) PortRangeList {
 // 	var portList []PortRange
