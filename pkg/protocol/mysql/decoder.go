@@ -96,7 +96,7 @@ func (d *DecoderImpl) parseMessage(data types.IoBuffer, seq int, length int) {
 		var greeting ServerGreeting
 		greeting.decode(data, seq, length)
 		d.session.setState(ChallengeReq)
-		d.callBacks.OnServerGreeting(&greeting)
+		d.Callbacks.OnServerGreeting(&greeting)
 		break
 	case ChallengeReq:
 		var clientLogin ClientLogin
@@ -108,13 +108,12 @@ func (d *DecoderImpl) parseMessage(data types.IoBuffer, seq int, length int) {
 		} else {
 			d.session.setState(ChallengeResp320)
 		}
-		d.callBacks.OnClientLogin(&clientLogin)
+		d.Callbacks.OnClientLogin(&clientLogin)
 		break
 	case ChallengeResp41:
 	case ChallengeResp320:
 		var respCode int
 		// TODO read buf
-		data.WriteUint16()
 		d.session.setState(NotHandled)
 		break
 	case SslPt:
