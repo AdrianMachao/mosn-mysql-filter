@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"encoding/binary"
+
 	"github.com/mattn/go-gnulib/endian"
 	"mosn.io/mosn/pkg/log"
 	"mosn.io/mosn/pkg/types"
@@ -21,7 +22,7 @@ type Decoder struct {
 
 type DecoderImpl struct {
 	Decoder
-	callBacks DecoderCallbacks
+	Callbacks DecoderCallbacks
 	session   Session
 }
 
