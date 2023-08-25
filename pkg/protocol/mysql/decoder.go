@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"encoding/binary"
+
 	"github.com/mattn/go-gnulib/endian"
 	"mosn.io/mosn/pkg/log"
 	"mosn.io/mosn/pkg/types"
@@ -21,12 +22,12 @@ type Decoder struct {
 
 type DecoderImpl struct {
 	Decoder
-	callBacks DecoderCallbacks
+	Callbacks DecoderCallbacks
 	session   Session
 }
 
 type DecoderCallbacks interface {
-	onProtocolError()
+	OnProtocolError()
 	OnNewMessage(state State)
 	OnServerGreeting(sg *ServerGreeting)
 	OnClientLogin(cl *ClientLogin)
@@ -62,7 +63,7 @@ func (d *DecoderImpl) decode(data types.IoBuffer) bool {
 	}
 
 	data.Drain(4)
-	d.callBacks.OnNewMessage(d.session.getState())
+	d.Callbacks.OnNewMessage(d.session.getState())
 
 	if seq != d.session.getExpectedSeq() {
 		if d.session.getState() == ReqResp && uint8(seq) == MYSQL_REQUEST_PKT_NUM {
@@ -70,7 +71,7 @@ func (d *DecoderImpl) decode(data types.IoBuffer) bool {
 			d.session.setState(Req)
 		} else {
 			log.DefaultLogger.Debugf("mysql_proxy: ignoring out-of-sync packet")
-			d.callBacks.onProtocolError()
+			d.Callbacks.OnProtocolError()
 			data.Drain(int(length))
 			return true
 		}

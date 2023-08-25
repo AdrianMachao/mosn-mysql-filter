@@ -48,6 +48,7 @@ type proxy struct {
 	upstreamConnecting  bool
 	accessLogs          []api.AccessLog
 	ctx                 context.Context
+	state               *State
 }
 
 func NewProxy(ctx context.Context, config *v2.StreamProxy) Proxy {
@@ -58,6 +59,9 @@ func NewProxy(ctx context.Context, config *v2.StreamProxy) Proxy {
 		requestInfo:    network.NewRequestInfo(),
 		accessLogs:     alv.([]api.AccessLog),
 		ctx:            ctx,
+		decoder: &mysql.DecoderImpl{
+			Callbacks: &Callback{},
+		},
 	}
 
 	p.upstreamCallbacks = &upstreamCallbacks{
@@ -79,6 +83,7 @@ func (p *proxy) OnData(buffer buffer.IoBuffer) api.FilterStatus {
 	p.requestInfo.SetBytesReceived(bytesRecved)
 
 	// decode
+
 	p.upstreamConnection.Write(buffer.Clone())
 
 	buffer.Drain(buffer.Len())
