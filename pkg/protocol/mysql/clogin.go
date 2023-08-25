@@ -63,3 +63,26 @@ func (cl *ClientLogin) encodeResponse41(out types.IoBuffer) {
 
 func (cl *ClientLogin) encodeResponse320(out types.IoBuffer) {
 }
+
+func (cl *ClientLogin) addConnectionAttribute() {
+}
+
+func (cl *ClientLogin) isResponse41() bool {
+	return true
+}
+
+func (cl *ClientLogin) isResponse320() bool {
+	return true
+}
+func (cl *ClientLogin) isSSLRequest() bool {
+	return true
+}
+func (cl *ClientLogin) isConnectWithDb() bool {
+	return true
+}
+func (cl *ClientLogin) isClientAuthLenClData() bool {
+	return true
+}
+func (cl *ClientLogin) isClientSecureConnection() bool {
+	return true
+}

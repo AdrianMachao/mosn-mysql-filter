@@ -31,7 +31,7 @@ func (s Session) getState() State {
 	return s.state
 }
 
-func (s Session) getExpectedSeq() uint8 {
+func (s Session) getExpectedSeq() int {
 	return 0
 }
 

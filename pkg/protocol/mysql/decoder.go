@@ -45,14 +45,14 @@ func (d *DecoderImpl) OnData(data types.IoBuffer) {
 func (d *DecoderImpl) decode(data types.IoBuffer) bool {
 	// check frame size
 	var length uint32
-	var seq uint8
+	var seq int
 
 	val := binary.LittleEndian.Uint32(data.Bytes())
 
 	if data.Len() < binary.Size(data) {
 		return false
 	}
-	seq = uint8(endian.Htobe32(val) & MYSQL_HDR_SEQ_MASK)
+	seq = int(endian.Htobe32(val) & MYSQL_HDR_SEQ_MASK)
 	length = val & MYSQL_HDR_PKT_SIZE_MASK
 
 	//endian.Le32toh()
@@ -65,7 +65,7 @@ func (d *DecoderImpl) decode(data types.IoBuffer) bool {
 	d.callBacks.OnNewMessage(d.session.getState())
 
 	if seq != d.session.getExpectedSeq() {
-		if d.session.getState() == ReqResp && seq == MYSQL_REQUEST_PKT_NUM {
+		if d.session.getState() == ReqResp && uint8(seq) == MYSQL_REQUEST_PKT_NUM {
 			d.session.setExpectedSeq(MYSQL_REQUEST_PKT_NUM)
 			d.session.setState(Req)
 		} else {
@@ -86,17 +86,41 @@ func (d *DecoderImpl) decode(data types.IoBuffer) bool {
 	return false
 }
 
-func (d *DecoderImpl) parseMessage(data types.IoBuffer, seq uint8, len int) {
+func (d *DecoderImpl) parseMessage(data types.IoBuffer, seq int, length int) {
 	if log.DefaultLogger.GetLogLevel() >= log.DEBUG {
 		log.DefaultLogger.Debugf("")
 	}
 	switch d.session.getState() {
 	case Init:
+		var greeting ServerGreeting
+		greeting.decode(data, seq, length)
+		d.session.setState(ChallengeReq)
+		d.callBacks.OnServerGreeting(&greeting)
+		break
 	case ChallengeReq:
+		var clientLogin ClientLogin
+		clientLogin.decode(data, seq, length)
+		if clientLogin.isSSLRequest() {
+			d.session.setState(SslPt)
+		} else if clientLogin.isResponse41() {
+			d.session.setState(ChallengeResp41)
+		} else {
+			d.session.setState(ChallengeResp320)
+		}
+		d.callBacks.OnClientLogin(&clientLogin)
+		break
 	case ChallengeResp41:
 	case ChallengeResp320:
+		var respCode int
+		// TODO read buf
+		data.WriteUint16()
+		d.session.setState(NotHandled)
+		break
 	case SslPt:
+		data.Drain(data.Len())
+		break
 	case AuthSwitchReq:
+
 	case AuthSwitchReqOld:
 	case AuthSwitchResp:
 	case AuthSwitchMore:
@@ -107,7 +131,3 @@ func (d *DecoderImpl) parseMessage(data types.IoBuffer, seq uint8, len int) {
 	case Error:
 	}
 }
-
-//func (dfi *DecodeFactoryImpl) create(callbacks *DecoderCallbacks) *Decoder {
-//	return nil
-//}

@@ -3,7 +3,7 @@ package mysql
 import "mosn.io/mosn/pkg/types"
 
 type MySQLCodec struct {
-	seq uint8
+	seq int
 }
 
 var (
@@ -112,6 +112,11 @@ var (
 	Failure DecodeStatus = 1
 )
 
-func (m *MySQLCodec) parseMessage(data types.IoBuffer) DecodeStatus {
+func (m *MySQLCodec) parseMessage(data types.IoBuffer, length int) DecodeStatus {
 	return 0
+}
+
+func (m *MySQLCodec) decode(data types.IoBuffer, seq int, length int) DecodeStatus {
+	m.seq = seq
+	return m.parseMessage(data, length)
 }
