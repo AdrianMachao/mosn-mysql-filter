@@ -27,7 +27,7 @@ type DecoderImpl struct {
 }
 
 type DecoderCallbacks interface {
-	onProtocolError()
+	OnProtocolError()
 	OnNewMessage(state State)
 	OnServerGreeting(sg *ServerGreeting)
 	OnClientLogin(cl *ClientLogin)
@@ -63,7 +63,7 @@ func (d *DecoderImpl) decode(data types.IoBuffer) bool {
 	}
 
 	data.Drain(4)
-	d.callBacks.OnNewMessage(d.session.getState())
+	d.Callbacks.OnNewMessage(d.session.getState())
 
 	if seq != d.session.getExpectedSeq() {
 		if d.session.getState() == ReqResp && seq == MYSQL_REQUEST_PKT_NUM {
@@ -71,7 +71,7 @@ func (d *DecoderImpl) decode(data types.IoBuffer) bool {
 			d.session.setState(Req)
 		} else {
 			log.DefaultLogger.Debugf("mysql_proxy: ignoring out-of-sync packet")
-			d.callBacks.onProtocolError()
+			d.Callbacks.OnProtocolError()
 			data.Drain(int(length))
 			return true
 		}
