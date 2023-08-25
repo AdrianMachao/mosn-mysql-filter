@@ -11,19 +11,15 @@ func (c Callback) OnProtocolError() {
 }
 
 func (c Callback) OnNewMessage(state mysql.State) {
-	//TODO implement me
+	if state == mysql.ChallengeReq {
+		c.state.login_attempts.Inc(1)
+	}
 }
 
-func (c Callback) OnServerGreeting(sg *mysql.ServerGreeting) {
-	//TODO implement me
+func (c Callback) OnClientLogin(clientLogin *mysql.ClientLoginResponse) {
 }
 
-func (c Callback) OnClientLogin(cl *mysql.ClientLogin) {
-	//TODO implement me
-}
-
-func (c Callback) OnClientLoginResponse(clr *mysql.ClientLoginResponse) {
-	//TODO implement me
+func (c Callback) OnClientLoginResponse() {
 }
 
 func (c Callback) OnClientSwitchResponse(cc *mysql.Command) {
@@ -40,4 +36,8 @@ func (c Callback) OnCommand(*mysql.Command) {
 
 func (c Callback) OnCommandResponse(*mysql.CommandResponse) {
 	//TODO implement me
+}
+
+func (c Callback) OnServerGreeting() {
+	c.state.UpgradedToSsl.Inc(1)
 }
