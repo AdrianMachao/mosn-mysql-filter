@@ -48,7 +48,7 @@ type proxy struct {
 	upstreamConnecting  bool
 	accessLogs          []api.AccessLog
 	ctx                 context.Context
-	state               *State
+	//state               *State
 }
 
 func NewProxy(ctx context.Context, config *v2.StreamProxy) Proxy {
@@ -83,10 +83,11 @@ func (p *proxy) OnData(buffer buffer.IoBuffer) api.FilterStatus {
 	p.requestInfo.SetBytesReceived(bytesRecved)
 
 	// decode
+	p.decoder.OnData(buffer.Clone())
 
 	p.upstreamConnection.Write(buffer.Clone())
 
-	buffer.Drain(buffer.Len())
+	//buffer.Drain(buffer.Len())
 	return api.Stop
 }
 

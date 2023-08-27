@@ -1,5 +1,7 @@
 package mysql
 
+import "mosn.io/mosn/pkg/types"
+
 type ServerGreeting struct {
 	MySQLCodec
 	protocol        uint8
@@ -74,5 +76,14 @@ func (sg *ServerGreeting) setServerStatus(serverStatus uint16) {
 }
 
 func (sg *ServerGreeting) check() DecodeStatus {
+	return 0
+}
+
+func (sg *ServerGreeting) decode(data types.IoBuffer, seq uint8, length int) DecodeStatus {
+	sg.seq = seq
+	return sg.parseMessage(data, length)
+}
+
+func (sg *ServerGreeting) parseMessage(data types.IoBuffer, length int) DecodeStatus {
 	return 0
 }

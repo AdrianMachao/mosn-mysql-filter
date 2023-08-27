@@ -1,7 +1,8 @@
 package mysql
 
 type Session struct {
-	state State
+	state       State
+	expectedSeq uint8
 }
 
 type State uint8
@@ -31,8 +32,8 @@ func (s Session) getState() State {
 	return s.state
 }
 
-func (s Session) getExpectedSeq() int {
-	return 0
+func (s Session) getExpectedSeq() uint8 {
+	return s.expectedSeq
 }
 
 func (s Session) setExpectedSeq(seq uint8) {

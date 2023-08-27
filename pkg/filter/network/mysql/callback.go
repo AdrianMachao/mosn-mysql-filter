@@ -3,35 +3,48 @@ package mysql
 import "mosn.io/mosn/pkg/protocol/mysql"
 
 type Callback struct {
-	state *State
+	//state *State
 }
 
-func (c Callback) onProtocolError() {
-	c.state.ProtocolErrors.Inc(1)
+func (c Callback) OnProtocolError() {
+	//TODO implement me
 }
 
-func (c Callback) OnNewMessage() {
-	c.state.login_attempts.Inc(1)
+func (c Callback) OnNewMessage(state mysql.State) {
+	//TODO implement me
 }
 
-func (c Callback) OnServerGreeting() {
-	c.state.UpgradedToSsl.Inc(1)
+func (c Callback) OnServerGreeting(sg *mysql.ServerGreeting) {
+	//TODO implement me
+	panic("implement me")
 }
 
-func (c Callback) OnClientLogin(clientLogin *mysql.ClientLoginResponse) {
+func (c Callback) OnClientLogin(cl *mysql.ClientLogin) {
+	//TODO implement me
+	panic("implement me")
 }
 
-func (c Callback) OnClientLoginResponse() {
+func (c Callback) OnClientLoginResponse(clr *mysql.ClientLoginResponse) {
+	//TODO implement me
+	panic("implement me")
 }
 
-func (c Callback) OnClientSwitchResponse() {
+func (c Callback) OnClientSwitchResponse(cc *mysql.Command) {
+	//TODO implement me
+	panic("implement me")
 }
 
-func (c Callback) OnMoreClientLoginResponse() {
+func (c Callback) OnMoreClientLoginResponse(cr *mysql.CommandResponse) {
+	//TODO implement me
+	panic("implement me")
 }
 
-func (c Callback) OnCommand() {
+func (c Callback) OnCommand(*mysql.Command) {
+	//TODO implement me
+	panic("implement me")
 }
 
-func (c Callback) OnCommandResponse() {
+func (c Callback) OnCommandResponse(*mysql.CommandResponse) {
+	//TODO implement me
+	panic("implement me")
 }

@@ -64,7 +64,7 @@ func readAll(buf types.IoBuffer, str string) DecodeStatus {
 	return 0
 }
 func peekUint32(buf types.IoBuffer, val uint32) DecodeStatus {
-	buf.WriteUint32()
+	//buf.WriteUint32()
 	return 0
 }
 func peekUint8(buf types.IoBuffer, val uint32) DecodeStatus {
@@ -74,9 +74,9 @@ func consumeHdr(buf types.IoBuffer) DecodeStatus {
 	return 0
 }
 func peekHdr(buf types.IoBuffer, length uint32, seq uint8) DecodeStatus {
-	var val uint32
+	//var val uint32
 	// TODO 修改成指针
-	buf.WriteUint32()
+	//buf.WriteUint32()
 
 	return 0
 }
