@@ -24,17 +24,17 @@ const (
 	Error
 )
 
-func (s Session) setState(state State) {
-
+func (s *Session) setState(state State) {
+	s.state = state
 }
 
-func (s Session) getState() State {
+func (s *Session) getState() State {
 	return s.state
 }
 
-func (s Session) getExpectedSeq() uint8 {
+func (s *Session) getExpectedSeq() uint8 {
 	return s.expectedSeq
 }
 
-func (s Session) setExpectedSeq(seq uint8) {
+func (s *Session) setExpectedSeq(seq uint8) {
 }

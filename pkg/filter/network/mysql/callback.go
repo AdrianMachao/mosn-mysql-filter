@@ -16,35 +16,28 @@ func (c Callback) OnNewMessage(state mysql.State) {
 
 func (c Callback) OnServerGreeting(sg *mysql.ServerGreeting) {
 	//TODO implement me
-	panic("implement me")
 }
 
 func (c Callback) OnClientLogin(cl *mysql.ClientLogin) {
 	//TODO implement me
-	panic("implement me")
 }
 
 func (c Callback) OnClientLoginResponse(clr *mysql.ClientLoginResponse) {
 	//TODO implement me
-	panic("implement me")
 }
 
 func (c Callback) OnClientSwitchResponse(cc *mysql.Command) {
 	//TODO implement me
-	panic("implement me")
 }
 
 func (c Callback) OnMoreClientLoginResponse(cr *mysql.CommandResponse) {
 	//TODO implement me
-	panic("implement me")
 }
 
 func (c Callback) OnCommand(*mysql.Command) {
 	//TODO implement me
-	panic("implement me")
 }
 
 func (c Callback) OnCommandResponse(*mysql.CommandResponse) {
 	//TODO implement me
-	panic("implement me")
 }

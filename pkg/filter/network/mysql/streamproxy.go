@@ -83,11 +83,8 @@ func (p *proxy) OnData(buffer buffer.IoBuffer) api.FilterStatus {
 	p.requestInfo.SetBytesReceived(bytesRecved)
 
 	// decode
-	p.decoder.OnData(buffer.Clone())
-
+	p.doDecode(buffer.Clone())
 	p.upstreamConnection.Write(buffer.Clone())
-
-	//buffer.Drain(buffer.Len())
 	return api.Stop
 }
 
@@ -96,9 +93,7 @@ func (p *proxy) doDecode(buffer buffer.IoBuffer) {
 	if p.decoder == nil {
 		p.decoder = &mysql.DecoderImpl{}
 	}
-
 	p.decoder.OnData(buffer.Clone())
-
 	buffer.Drain(buffer.Len())
 }
 

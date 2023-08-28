@@ -20,7 +20,7 @@ type Decoder struct {
 type DecoderImpl struct {
 	Decoder
 	Callbacks DecoderCallbacks
-	session   Session
+	session   *Session
 }
 
 type DecoderCallbacks interface {
