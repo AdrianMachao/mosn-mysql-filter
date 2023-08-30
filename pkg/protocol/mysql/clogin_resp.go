@@ -6,19 +6,19 @@ type ClientLoginResponse struct {
 }
 
 type AuthMoreMessage struct {
-	ClientLoginResponse
+	*ClientLoginResponse
 	morePluginData []uint8
 }
 
 type AuthSwitchMessage struct {
-	ClientLoginResponse
+	*ClientLoginResponse
 	isOldAuthSwitch bool
 	authPluginData  []uint8
 	authPluginName  string
 }
 
 type OkMessage struct {
-	ClientLoginResponse
+	*ClientLoginResponse
 	affectedRows        uint64
 	lastInsertId        uint64
 	status              uint16
@@ -28,7 +28,7 @@ type OkMessage struct {
 }
 
 type ErrMessage struct {
-	ClientLoginResponse
+	*ClientLoginResponse
 	marker       uint8
 	errorCode    uint16
 	sqlState     string
@@ -43,6 +43,7 @@ func (clr *ClientLoginResponse) getRespCode() uint8 {
 }
 
 func (amm *AuthMoreMessage) setAuthMoreData(data []uint8) {
+
 }
 
 func (amm *AuthMoreMessage) getAuthMoreData() []uint8 {

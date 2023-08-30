@@ -30,7 +30,7 @@ type DecoderCallbacks interface {
 	OnClientLogin(cl *ClientLogin)
 	OnClientLoginResponse(clr *ClientLoginResponse)
 	OnClientSwitchResponse(c *Command)
-	OnMoreClientLoginResponse(cr *CommandResponse)
+	OnMoreClientLoginResponse(cr *ClientLoginResponse)
 	OnCommand(c *Command)
 	OnCommandResponse(cr *CommandResponse)
 }
@@ -111,10 +111,45 @@ func (d *DecoderImpl) parseMessage(data types.IoBuffer, seq uint8, length int) {
 		break
 	case ChallengeResp41:
 	case ChallengeResp320:
-		//var respCode int
-		// TODO read buf
-		d.session.setState(NotHandled)
-		break
+		header := data.Peek(1)
+		if header == nil {
+			d.session.setState(NotHandled)
+			break
+		}
+		// resp_code
+
+		switch header[0] {
+		case MYSQL_RESP_OK:
+			msg := &OkMessage{}
+			d.session.setExpectedSeq(MYSQL_REQUEST_PKT_NUM)
+			msg.decode(data, seq, length)
+			d.session.setState(Req)
+			d.Callbacks.OnClientLoginResponse(msg.ClientLoginResponse)
+			break
+		case MYSQL_RESP_AUTH_SWITCH:
+			msg := &AuthMoreMessage{}
+			msg.decode(data, seq, length)
+			d.session.setState(AuthSwitchResp)
+			d.Callbacks.OnClientLoginResponse(msg.ClientLoginResponse)
+			break
+		case MYSQL_RESP_ERR:
+			msg := &ErrMessage{}
+			msg.decode(data, seq, length)
+			d.session.setState(Error)
+			d.Callbacks.OnClientLoginResponse(msg.ClientLoginResponse)
+			break
+		case MYSQL_RESP_MORE:
+			msg := &AuthMoreMessage{}
+			msg.decode(data, seq, length)
+			d.session.setState(NotHandled)
+			d.Callbacks.OnClientLoginResponse(msg.ClientLoginResponse)
+			break
+		default:
+			d.session.setState(NotHandled)
+			d.Callbacks.OnClientLoginResponse(&ClientLoginResponse{})
+			return
+		}
+
 	case SslPt:
 		data.Drain(data.Len())
 		break
@@ -122,10 +157,60 @@ func (d *DecoderImpl) parseMessage(data types.IoBuffer, seq uint8, length int) {
 
 	case AuthSwitchReqOld:
 	case AuthSwitchResp:
+		clientSwitchResponse := &ClientSwitchResponse{}
+		clientSwitchResponse.decode(data, seq, length)
+		d.session.setState(AuthSwitchMore)
+		break
 	case AuthSwitchMore:
+		header := data.Peek(1)
+		if header == nil {
+			d.session.setState(NotHandled)
+			break
+		}
+		switch header[0] {
+		case MYSQL_RESP_OK:
+			msg := &OkMessage{}
+			d.session.setExpectedSeq(MYSQL_REQUEST_PKT_NUM)
+			d.session.setState(Req)
+			msg.decode(data, seq, length)
+			d.Callbacks.OnMoreClientLoginResponse(msg.ClientLoginResponse)
+			break
+		case MYSQL_RESP_MORE:
+			msg := &AuthMoreMessage{}
+			d.session.setState(AuthSwitchResp)
+			msg.decode(data, seq, length)
+			d.Callbacks.OnMoreClientLoginResponse(msg.ClientLoginResponse)
+			break
+		case MYSQL_RESP_ERR:
+			msg := &ErrMessage{}
+			d.session.setExpectedSeq(MYSQL_REQUEST_PKT_NUM)
+			d.session.setState(Resync)
+			msg.decode(data, seq, length)
+			d.Callbacks.OnMoreClientLoginResponse(msg.ClientLoginResponse)
+			break
+		case MYSQL_RESP_AUTH_SWITCH:
+			msg := &AuthSwitchMessage{}
+			d.session.setState(NotHandled)
+			msg.decode(data, seq, length)
+			d.Callbacks.OnMoreClientLoginResponse(msg.ClientLoginResponse)
+		default:
+			d.session.setState(NotHandled)
+			d.Callbacks.OnMoreClientLoginResponse(&ClientLoginResponse{})
+			return
+		}
 	case ReqResp:
+		commandResp := &CommandResponse{}
+		commandResp.decode(data, seq, length)
+		d.Callbacks.OnCommandResponse(commandResp)
 	case Req:
+		command := &Command{}
+		command.decode(data, seq, length)
+		d.Callbacks.OnCommand(command)
 	case Resync:
+		// re-sync to MYSQL_REQ state
+		// expected seq check succeeded, no need to verify
+		d.session.setState(Req)
+		fallthrough
 	case NotHandled:
 	case Error:
 	}
