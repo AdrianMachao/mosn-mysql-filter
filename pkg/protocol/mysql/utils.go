@@ -57,9 +57,18 @@ func readString(buf types.IoBuffer, str string) DecodeStatus {
 func readVector(buf types.IoBuffer, data []uint8) DecodeStatus {
 	return 0
 }
-func readStringBySize(buf types.IoBuffer, length int64, str string) DecodeStatus {
-	return 0
+
+func readStringBySize(buf types.IoBuffer, length int64) (string, DecodeStatus) {
+	if buf.Len() < int(length) {
+		return "", Failure
+	}
+
+	data := buf.Peek(int(length))
+	buf.Drain(int(length))
+
+	return string(data), Success
 }
+
 func readAll(buf types.IoBuffer, str string) DecodeStatus {
 	return 0
 }
