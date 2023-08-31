@@ -1,35 +1,35 @@
 package mysql
 
-import "mosn.io/mosn/pkg/protocol/mysql"
+import (
+	"mosn.io/mosn/pkg/protocol/mysql"
+)
 
 type Callback struct {
 	state *State
 }
 
-// OnProtocolError()
-// OnNewMessage(state State)
-// OnServerGreeting(sg *ServerGreeting)
-// OnClientLogin(cl *ClientLogin)
-// OnClientLoginResponse(clr *ClientLoginResponse)
-// OnClientSwitchResponse(c *Command)
-// OnMoreClientLoginResponse(cr *CommandResponse)
-// OnCommand(c *Command)
-// OnCommandResponse(cr *CommandResponse)
-
 func (c Callback) OnProtocolError() {
-	//TODO implement me
+	c.state.ProtocolErrors.Inc(1)
 }
 
 func (c Callback) OnNewMessage(state mysql.State) {
 	if state == mysql.ChallengeReq {
-		c.state.login_attempts.Inc(1)
+		c.state.LoginAttempts.Inc(1)
 	}
 }
 
-func (c Callback) OnClientLogin(clientLogin *mysql.ClientLogin) {
+func (c Callback) OnClientLogin(cl *mysql.ClientLogin) {
+	if cl.IsSSLRequest() {
+		c.state.UpgradedToSsl.Inc(1)
+	}
 }
 
 func (c Callback) OnClientLoginResponse(clr *mysql.ClientLoginResponse) {
+	if clr.GetRespCode() == mysql.MYSQL_RESP_AUTH_SWITCH {
+		c.state.AuthSwitchRequest.Inc(1)
+	} else if clr.GetRespCode() == mysql.MYSQL_RESP_ERR {
+		c.state.LoginFailures.Inc(1)
+	}
 }
 
 func (c Callback) OnServerGreeting(sg *mysql.ServerGreeting) {
@@ -37,17 +37,17 @@ func (c Callback) OnServerGreeting(sg *mysql.ServerGreeting) {
 }
 
 func (c Callback) OnClientSwitchResponse(cc *mysql.Command) {
-	//TODO implement me
 }
 
-func (c Callback) OnMoreClientLoginResponse(cr *mysql.CommandResponse) {
-	//TODO implement me
+func (c Callback) OnMoreClientLoginResponse(clr *mysql.ClientLoginResponse) {
+	if clr.GetRespCode() == mysql.MYSQL_RESP_ERR {
+		c.state.LoginFailures.Inc(1)
+	}
 }
 
 func (c Callback) OnCommand(*mysql.Command) {
-	//TODO implement me
+	// TODO implement me
 }
 
 func (c Callback) OnCommandResponse(*mysql.CommandResponse) {
-	//TODO implement me
 }

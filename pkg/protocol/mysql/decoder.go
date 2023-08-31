@@ -1,6 +1,8 @@
 package mysql
 
 import (
+	"fmt"
+
 	"mosn.io/mosn/pkg/log"
 	"mosn.io/mosn/pkg/types"
 )
@@ -21,6 +23,17 @@ type DecoderImpl struct {
 	Decoder
 	Callbacks DecoderCallbacks
 	session   *Session
+}
+
+func CreateDecoder(callbacks DecoderCallbacks) *DecoderImpl {
+	p := &DecoderImpl{
+		Callbacks: callbacks,
+		session:   &Session{},
+	}
+
+	fmt.Println("----p", p.session)
+
+	return p
 }
 
 type DecoderCallbacks interface {
@@ -100,7 +113,7 @@ func (d *DecoderImpl) parseMessage(data types.IoBuffer, seq uint8, length int) {
 	case ChallengeReq:
 		var clientLogin ClientLogin
 		clientLogin.decode(data, seq, length)
-		if clientLogin.isSSLRequest() {
+		if clientLogin.IsSSLRequest() {
 			d.session.setState(SslPt)
 		} else if clientLogin.isResponse41() {
 			d.session.setState(ChallengeResp41)

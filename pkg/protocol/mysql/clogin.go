@@ -74,7 +74,7 @@ func (cl *ClientLogin) isResponse41() bool {
 func (cl *ClientLogin) isResponse320() bool {
 	return true
 }
-func (cl *ClientLogin) isSSLRequest() bool {
+func (cl *ClientLogin) IsSSLRequest() bool {
 	return true
 }
 func (cl *ClientLogin) isConnectWithDb() bool {

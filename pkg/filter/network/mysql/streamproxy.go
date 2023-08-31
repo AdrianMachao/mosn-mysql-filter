@@ -59,9 +59,9 @@ func NewProxy(ctx context.Context, config *v2.StreamProxy) Proxy {
 		requestInfo:    network.NewRequestInfo(),
 		accessLogs:     alv.([]api.AccessLog),
 		ctx:            ctx,
-		decoder: &mysql.DecoderImpl{
-			Callbacks: &Callback{},
-		},
+		decoder: mysql.CreateDecoder(Callback{
+			state: newState(),
+		}),
 	}
 
 	p.upstreamCallbacks = &upstreamCallbacks{
@@ -85,14 +85,16 @@ func (p *proxy) OnData(buffer buffer.IoBuffer) api.FilterStatus {
 	// decode
 	p.doDecode(buffer.Clone())
 	p.upstreamConnection.Write(buffer.Clone())
+
+	buffer.Drain(buffer.Len())
 	return api.Stop
 }
 
 func (p *proxy) doDecode(buffer buffer.IoBuffer) {
 	// TODO Metadata
-	if p.decoder == nil {
-		p.decoder = &mysql.DecoderImpl{}
-	}
+	// if p.decoder == nil {
+	// 	p.decoder = mysql.CreateDecoder(Callback{})
+	// }
 	p.decoder.OnData(buffer.Clone())
 	buffer.Drain(buffer.Len())
 }

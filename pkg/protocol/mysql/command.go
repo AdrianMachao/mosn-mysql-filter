@@ -42,16 +42,12 @@ const (
 )
 
 func (c *Command) parseCmd(data types.IoBuffer) Cmd {
-	cmdBytes := data.Peek(1)
-	if cmdBytes == nil {
+	cmdData, status := readUint8(data)
+	if status != Success {
 		return Null
 	}
 
-	cmd := Cmd(uint32(cmdBytes[0]))
-
-	data.Drain(1)
-
-	return cmd
+	return Cmd(cmdData)
 }
 
 func (c *Command) setCmd(cmd Cmd) {
@@ -87,6 +83,17 @@ func (c *Command) getIsQuery() bool {
 }
 
 func (cr *Command) encode(data types.IoBuffer) {
+	data.WriteByte(uint8(cr.cmd))
+	switch cr.cmd {
+	case InitDb:
+	case CreateDb:
+	case DropDb:
+		data.WriteString(cr.db)
+		break
+	default:
+		data.WriteString(cr.data)
+		break
+	}
 }
 
 func (cr *Command) decode(data types.IoBuffer, seq uint8, length int) DecodeStatus {
@@ -106,13 +113,14 @@ func (cr *Command) parseMessage(data types.IoBuffer, length int) DecodeStatus {
 	case InitDb:
 	case CreateDb:
 	case DropDb:
-		db := data.Peek(length - 1)
+		db, _ := readStringBySize(data, int64(length-1))
 		cr.setDb(string(db))
 		break
 	case Query:
 		cr.isQuery = true
 	default:
-		data.Peek(length - 1)
+		db, _ := readStringBySize(data, int64(length-1))
+		cr.data = db
 		break
 	}
 
@@ -120,8 +128,8 @@ func (cr *Command) parseMessage(data types.IoBuffer, length int) DecodeStatus {
 }
 
 func (cr *CommandResponse) parseMessage(data types.IoBuffer, length int) DecodeStatus {
-	cmdResp := data.Peek(length - 1)
-	if cmdResp == nil {
+	cmdResp, status := readStringBySize(data, int64(length))
+	if status != Success {
 		return Failure
 	}
 
@@ -130,13 +138,8 @@ func (cr *CommandResponse) parseMessage(data types.IoBuffer, length int) DecodeS
 	return Success
 }
 
-// if (BufferHelper::readStringBySize(buffer, len, data_) != DecodeStatus::Success) {
-//     ENVOY_LOG(debug, "error when parsing command response");
-//     return DecodeStatus::Failure;
-//   }
-//   return DecodeStatus::Success;
-
 func (cr *CommandResponse) encode(data types.IoBuffer) {
+	data.WriteString(cr.data)
 }
 
 func (cr *CommandResponse) setData(data string) {

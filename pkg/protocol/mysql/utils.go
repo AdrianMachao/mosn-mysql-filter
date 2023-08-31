@@ -27,8 +27,15 @@ func encodeHdr(buf types.IoBuffer, seq uint8) {
 func endOfBuffer(buf types.IoBuffer) {
 }
 
-func readUint8(buf types.IoBuffer, val uint8) DecodeStatus {
-	return 0
+func readUint8(buf types.IoBuffer) (uint8, DecodeStatus) {
+	if buf.Len() < 1 {
+		return 0, Failure
+	}
+
+	data := buf.Peek(1)
+	buf.Drain(1)
+
+	return data[0], Success
 }
 
 func readUint16(buf types.IoBuffer, val uint16) DecodeStatus {

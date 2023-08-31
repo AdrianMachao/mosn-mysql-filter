@@ -38,7 +38,7 @@ type ErrMessage struct {
 func (clr *ClientLoginResponse) setRespCode(code uint8) {
 }
 
-func (clr *ClientLoginResponse) getRespCode() uint8 {
+func (clr *ClientLoginResponse) GetRespCode() uint8 {
 	return 0
 }
 
