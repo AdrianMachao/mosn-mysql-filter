@@ -50,8 +50,19 @@ func readUint32(buf types.IoBuffer, val uint32) DecodeStatus {
 	return 0
 }
 
-func readLengthEncodedInteger(buf types.IoBuffer, val uint64) DecodeStatus {
-	return 0
+func readLengthEncodedInteger(buf types.IoBuffer) (uint8, DecodeStatus) {
+	byteVal, status := readUint8(buf)
+	if status == Failure {
+		return 0, Failure
+	}
+
+	if byteVal < LENENCODINT_1BYTE {
+		return byteVal, Success
+	}
+
+	if byteVal == LENENCODINT_2BYTES {
+		
+	}
 }
 
 func skipBytes(buf types.IoBuffer, skipBytes int64) DecodeStatus {

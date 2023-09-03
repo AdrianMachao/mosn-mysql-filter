@@ -34,7 +34,7 @@ func (c Callback) OnClientSwitchResponse(cc *Command) {
 	//TODO implement me
 }
 
-func (c Callback) OnMoreClientLoginResponse(cr *CommandResponse) {
+func (c Callback) OnMoreClientLoginResponse(cr *ClientLoginResponse) {
 	//TODO implement me
 }
 

@@ -36,8 +36,23 @@ func (cl *ClientLogin) setAuthResp(authResp []uint8) {}
 func (cl *ClientLogin) setAuthPluginName(plugin string) {
 }
 
-func (cl *ClientLogin) parseMessage(buffer types.IoBuffer, lenth uint32) DecodeStatus {
+func (cl *ClientLogin) parseMessage(buffer types.IoBuffer, lenth int) DecodeStatus {
+	respCode, status := readUint8(buffer)
+	if status != Success {
+		return Failure
+	}
+
+	if respCode != MYSQL_RESP_OK {
+		return Failure
+	}
+
+	readLengthEncodedInteger()
 	return 0
+}
+
+func (m *ClientLogin) decode(data types.IoBuffer, seq uint8, length int) DecodeStatus {
+	m.seq = seq
+	return m.parseMessage(data, length)
 }
 
 func (cl *ClientLogin) parseMessageSsl(buffer types.IoBuffer) DecodeStatus {
