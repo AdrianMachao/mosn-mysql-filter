@@ -49,6 +49,18 @@ func (sg *ServerGreeting) getAuthPluginData() []uint8 {
 	return sg.authPluginData1
 }
 
+func (sg *ServerGreeting) getBaseServerCap() uint16 {
+	return uint16(sg.serverCap) & 0x0000ffff
+}
+
+func (sg *ServerGreeting) getExtServerCap() uint16 {
+	return uint16(sg.serverCap >> 16)
+}
+
+func (sg *ServerGreeting) getAuthPluginName() string {
+	return sg.authPluginName
+}
+
 func (sg *ServerGreeting) setProtocol(protocol uint8) {
 	sg.protocol = protocol
 }
@@ -113,6 +125,58 @@ func (sg *ServerGreeting) check() DecodeStatus {
 func (sg *ServerGreeting) decode(data types.IoBuffer, seq uint8, length int) DecodeStatus {
 	sg.seq = seq
 	return sg.parseMessage(data, length)
+}
+
+func (sg *ServerGreeting) encode(data types.IoBuffer) {
+	addUint8(data, sg.protocol)
+	addString(data, sg.version)
+	addUint8(data, 0)
+	addUint32(data, sg.threadId)
+	addBytes(data, sg.authPluginData1)
+	addUint8(data, 0)
+	if sg.protocol == MYSQL_PROTOCOL_9 {
+		return
+	}
+
+	addUint16(data, sg.getBaseServerCap())
+	addUint8(data, sg.serverCharset)
+	addUint16(data, sg.serverStatus)
+	addUint16(data, sg.getExtServerCap())
+
+	if (sg.serverCap & CLIENT_PLUGIN_AUTH) > 0 {
+		addUint8(data, uint8(len(sg.authPluginData2)+len(sg.authPluginData1)))
+	} else {
+		addUint8(data, 0)
+	}
+
+	for i := 0; i < 10; i++ {
+		addUint8(data, 0)
+	}
+
+	authData := make([]uint8, 0, len(sg.authPluginData2))
+	copy(authData, sg.authPluginData2)
+	if (sg.serverCap & CLIENT_PLUGIN_AUTH) > 0 {
+		if len(authData) >= 13 {
+			authData = authData[:13]
+		} else {
+			for i := 0; i < 13-len(authData); i++ {
+				authData = append(authData, 0)
+			}
+		}
+		addBytes(data, authData)
+		addString(data, sg.authPluginName)
+		addUint8(data, 0)
+	} else if (sg.serverCap & CLIENT_SECURE_CONNECTION) > 0 {
+		if len(authData) >= 12 {
+			authData = authData[:12]
+		} else {
+			for i := 0; i < 12-len(authData); i++ {
+				authData = append(authData, 0)
+			}
+		}
+		addBytes(data, sg.authPluginData2)
+		addUint8(data, 0)
+	}
 }
 
 func (sg *ServerGreeting) parseMessage(buffer types.IoBuffer, length int) DecodeStatus {

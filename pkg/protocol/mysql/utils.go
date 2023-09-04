@@ -5,23 +5,33 @@ import (
 )
 
 func addUint8(buf types.IoBuffer, val uint8) {
+	buf.WriteByte(val)
 }
 
 func addUint16(buf types.IoBuffer, val uint16) {
+	buf.WriteUint16(val)
 }
 func addUint24(buf types.IoBuffer, val uint32) {
+
 }
+
 func addUint32(buf types.IoBuffer, val uint32) {
+	buf.WriteUint32(val)
 }
+
 func addLengthEncodedInteger(buf types.IoBuffer, val uint64) {
 }
 
-func addBytes(buf types.IoBuffer, data byte, val uint64) {
+func addBytes(buf types.IoBuffer, data []byte) {
+	buf.Write(data)
 }
+
 func addString(buf types.IoBuffer, str string) {
+	buf.WriteString(str)
 }
 
 func addVector(buf types.IoBuffer, data []uint8) {
+	buf.Write(data)
 }
 
 func encodeHdr(buf types.IoBuffer, seq uint8) {
@@ -85,7 +95,7 @@ func readLengthEncodedInteger(buf types.IoBuffer) (uint8, DecodeStatus) {
 	}
 
 	if byteVal == LENENCODINT_2BYTES {
-		
+
 	}
 }
 
