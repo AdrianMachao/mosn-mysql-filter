@@ -112,11 +112,11 @@ var (
 	Failure DecodeStatus = 1
 )
 
-func (m *MySQLCodec) parseMessage(data types.IoBuffer, length int) DecodeStatus {
+func (m *MySQLCodec) parseMessage(data types.IoBuffer, length uint32) DecodeStatus {
 	return 0
 }
 
-func (m *MySQLCodec) decode(data types.IoBuffer, seq uint8, length int) DecodeStatus {
+func (m *MySQLCodec) decode(data types.IoBuffer, seq uint8, length uint32) DecodeStatus {
 	m.seq = seq
 	return m.parseMessage(data, length)
 }

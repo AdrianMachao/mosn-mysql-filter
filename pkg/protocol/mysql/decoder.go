@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"fmt"
+	"unsafe"
 
 	"mosn.io/mosn/pkg/log"
 	"mosn.io/mosn/pkg/types"
@@ -68,7 +69,7 @@ func (d *DecoderImpl) decode(data types.IoBuffer) bool {
 	// read packet header
 	header := data.Peek(4)
 	seq = header[3]
-	pktLen := int(uint32(header[0]) | uint32(header[1])<<8 | uint32(header[2])<<16)
+	pktLen := uint32(header[0]) | uint32(header[1])<<8 | uint32(header[2])<<16
 
 	println(pktLen)
 	//if 4+int(length) > data.Len() {
@@ -84,7 +85,7 @@ func (d *DecoderImpl) decode(data types.IoBuffer) bool {
 		} else {
 			log.DefaultLogger.Debugf("mysql_proxy: ignoring out-of-sync packet")
 			d.Callbacks.OnProtocolError()
-			data.Drain(pktLen)
+			data.Drain(int(unsafe.Sizeof(pktLen)))
 			return true
 		}
 	}
@@ -92,12 +93,12 @@ func (d *DecoderImpl) decode(data types.IoBuffer) bool {
 	d.session.setState(State(seq + 1))
 	// read packet body [pktLen bytes]
 	d.parseMessage(data, seq, pktLen)
-	data.Drain(pktLen)
+	data.Drain(int(unsafe.Sizeof(pktLen)))
 	log.DefaultLogger.Debugf("mysql_proxy: %d bytes remaining in buffer", pktLen)
 	return false
 }
 
-func (d *DecoderImpl) parseMessage(data types.IoBuffer, seq uint8, length int) {
+func (d *DecoderImpl) parseMessage(data types.IoBuffer, seq uint8, length uint32) {
 	if log.DefaultLogger.GetLogLevel() >= log.DEBUG {
 		log.DefaultLogger.Debugf("")
 	}

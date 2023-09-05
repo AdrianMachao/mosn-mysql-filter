@@ -122,7 +122,7 @@ func (sg *ServerGreeting) check() DecodeStatus {
 	return 0
 }
 
-func (sg *ServerGreeting) decode(data types.IoBuffer, seq uint8, length int) DecodeStatus {
+func (sg *ServerGreeting) decode(data types.IoBuffer, seq uint8, length uint32) DecodeStatus {
 	sg.seq = seq
 	return sg.parseMessage(data, length)
 }
@@ -179,7 +179,7 @@ func (sg *ServerGreeting) encode(data types.IoBuffer) {
 	}
 }
 
-func (sg *ServerGreeting) parseMessage(buffer types.IoBuffer, length int) DecodeStatus {
+func (sg *ServerGreeting) parseMessage(buffer types.IoBuffer, length uint32) DecodeStatus {
 	protocol, status := readUint8(buffer)
 	if status != Success {
 		log.DefaultLogger.Debugf("error when parsing protocol in mysql greeting msg")
