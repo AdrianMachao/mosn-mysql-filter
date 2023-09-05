@@ -1,6 +1,9 @@
 package mysql
 
-import "mosn.io/mosn/pkg/types"
+import (
+	"mosn.io/mosn/pkg/types"
+	"unsafe"
+)
 
 type ClientLogin struct {
 	MySQLCodec
@@ -36,21 +39,47 @@ func (cl *ClientLogin) setAuthResp(authResp []uint8) {}
 func (cl *ClientLogin) setAuthPluginName(plugin string) {
 }
 
-func (cl *ClientLogin) parseMessage(buffer types.IoBuffer, lenth int) DecodeStatus {
-	respCode, status := readUint8(buffer)
-	if status != Success {
+func (cl *ClientLogin) parseMessage(buffer types.IoBuffer, length uint32) DecodeStatus {
+	var baseCap uint16
+	var status DecodeStatus
+	if baseCap, status = readUint16(buffer); status != Success {
 		return Failure
 	}
 
-	if respCode != MYSQL_RESP_OK {
-		return Failure
+	cl.setBaseClientCap(baseCap)
+	if uint32(baseCap)&CLIENT_SSL == 1 {
+		return cl.parseMessageSsl(buffer)
 	}
 
-	readLengthEncodedInteger()
+	if uint32(baseCap)&CLIENT_PROTOCOL_41 == 1 {
+		return cl.parseMessage41(buffer)
+	}
+
+	return cl.parseMessage320(buffer, length-uint32(unsafe.Sizeof(baseCap)))
+	// TODO resp code
+	//respCode, status := readUint8(buffer)
+	//if status != Success {
+	//	return Failure
+	//}
+	//
+	//if respCode != MYSQL_RESP_OK {
+	//	return Failure
+	//}
+	//var val uint64
+	//val, status = readLengthEncodedInteger(buffer)
+	//if status == Failure {
+	//	return Failure
+	//}
+	//
+	//val, status = readLengthEncodedInteger(buffer)
+	//if status == Failure {
+	//	return Failure
+	//}
+
 	return 0
 }
 
-func (m *ClientLogin) decode(data types.IoBuffer, seq uint8, length int) DecodeStatus {
+func (m *ClientLogin) decode(data types.IoBuffer, seq uint8, length uint32) DecodeStatus {
 	m.seq = seq
 	return m.parseMessage(data, length)
 }

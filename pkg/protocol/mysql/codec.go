@@ -72,11 +72,11 @@ var (
 	CLIENT_INTERACTIVE                    uint   = 1024
 	CLIENT_FOUND_ROWS                     uint   = 0x00000002
 	CLIENT_IGNORE_SPACE                   uint   = 256
-	CLIENT_PROTOCOL_41                    uint   = 0x00000200
+	CLIENT_PROTOCOL_41                    uint32 = 0x00000200
 	CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA uint   = 0x00200000
 	CLIENT_CONNECT_WITH_DB                uint   = 0x00000008
 	CLIENT_CONNECT_ATTRS                  uint   = 0x00100000
-	CLIENT_SSL                            uint   = 0x00000800
+	CLIENT_SSL                            uint32 = 0x00000800
 	MYSQL_EXT_CL_PLUGIN_AUTH              uint16 = 0x8
 	MYSQL_MAX_PACKET                      uint32 = 0x00000001
 	MYSQL_CHARSET                         uint8  = 0x21

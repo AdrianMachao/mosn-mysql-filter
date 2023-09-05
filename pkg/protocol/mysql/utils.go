@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"encoding/binary"
 	"mosn.io/mosn/pkg/types"
 )
 
@@ -84,24 +85,26 @@ func readBytesBySize(buf types.IoBuffer, length int64) ([]byte, DecodeStatus) {
 	return data, Success
 }
 
-func readLengthEncodedInteger(buf types.IoBuffer) (uint8, DecodeStatus) {
+func readLengthEncodedInteger(buf types.IoBuffer) (uint64, DecodeStatus) {
+	var val uint64
 	byteVal, status := readUint8(buf)
 	if status == Failure {
 		return 0, Failure
 	}
 	switch byteVal {
 	case LENENCODINT_2BYTES:
-		val := buf.Peek(2)
+		val = uint64(binary.LittleEndian.Uint16(buf.Peek(2)))
 		buf.Drain(2)
 	case LENENCODINT_3BYTES:
-		val := buf.Peek(3)
+		val = uint64(binary.LittleEndian.Uint32(buf.Peek(3)))
 		buf.Drain(3)
 	case LENENCODINT_8BYTES:
-		val := buf.Peek(8)
+		val = binary.LittleEndian.Uint64(buf.Peek(8))
 		buf.Drain(8)
 	default:
 		return 0, Failure
 	}
+	return val, Success
 }
 
 func skipBytes(buf types.IoBuffer, skipBytes int64) DecodeStatus {
