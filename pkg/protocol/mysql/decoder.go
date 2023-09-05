@@ -31,8 +31,6 @@ func CreateDecoder(callbacks DecoderCallbacks) *DecoderImpl {
 		session:   &Session{},
 	}
 
-	fmt.Println("----p", p.session)
-
 	return p
 }
 
@@ -78,7 +76,7 @@ func (d *DecoderImpl) decode(data types.IoBuffer) bool {
 	//}
 	data.Drain(4)
 	d.Callbacks.OnNewMessage(d.session.getState())
-
+	fmt.Println("------seq:", seq)
 	if seq != d.session.getExpectedSeq() {
 		if d.session.getState() == ReqResp && seq == MYSQL_REQUEST_PKT_NUM {
 			d.session.setExpectedSeq(MYSQL_REQUEST_PKT_NUM)

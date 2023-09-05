@@ -10,6 +10,22 @@ package mysql
 
  */
 
+// mysql过程主要包括两个步骤，鉴权和命令，鉴权之后就进入命令阶段了
+// 鉴权
+// client                                              server
+//                         connect
+//           ------------------------------------>
+//                  inital handshake(challenge)
+//           <------------------------------------
+//           inital handshake response(challenge)
+//           ------------------------------------>
+//                      auth switch request
+//           <------------------------------------
+//                      auth switch response
+//           ------------------------------------>
+//                      ERR or OK
+//           <------------------------------------
+
 // http://dev.mysql.com/doc/internals/en/client-server-protocol.html
 
 // Read packet to buffer 'data'
