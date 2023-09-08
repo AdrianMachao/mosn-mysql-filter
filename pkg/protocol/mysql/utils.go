@@ -5,6 +5,10 @@ import (
 	"mosn.io/mosn/pkg/types"
 )
 
+const (
+	UNSET_BYTES = 23
+)
+
 func addUint8(buf types.IoBuffer, val uint8) {
 	buf.WriteByte(val)
 }
@@ -44,10 +48,8 @@ func readUint8(buf types.IoBuffer) (uint8, DecodeStatus) {
 	if buf.Len() < 1 {
 		return 0, Failure
 	}
-
 	data := buf.Peek(1)
 	buf.Drain(1)
-
 	return data[0], Success
 }
 
@@ -62,15 +64,15 @@ func readUint16(buf types.IoBuffer) (uint16, DecodeStatus) {
 	return uint16(data[0]) | uint16(data[1])<<8, Success
 }
 
-func readUint24(buf types.IoBuffer, val uint32) DecodeStatus {
-	return 0
+func readUint24(buf types.IoBuffer) (uint32, DecodeStatus) {
+	val := binary.LittleEndian.Uint32(buf.Peek(3))
+	buf.Drain(3)
+	return val, Success
 }
 
 func readUint32(buf types.IoBuffer) (uint32, DecodeStatus) {
-	data := buf.Peek(4)
-	val := uint32(uint32(data[0]) | uint32(data[1])<<8 | uint32(data[2])<<16 | uint32(data[3]<<24))
+	val := binary.LittleEndian.Uint32(buf.Peek(4))
 	buf.Drain(4)
-
 	return val, Success
 }
 
@@ -120,7 +122,7 @@ func skipBytes(buf types.IoBuffer, skipBytes int64) DecodeStatus {
 func readString(buf types.IoBuffer) (string, DecodeStatus) {
 	index := -1
 	for i, v := range buf.Bytes() {
-		if v == 0 {
+		if v == MYSQL_STR_END {
 			index = i
 			break
 		}
@@ -134,8 +136,13 @@ func readString(buf types.IoBuffer) (string, DecodeStatus) {
 
 	return str, Success
 }
-func readVector(buf types.IoBuffer, data []uint8) DecodeStatus {
-	return 0
+func readVectorBySize(buf types.IoBuffer, length int) ([]byte, DecodeStatus) {
+	if buf.Len() < length {
+		return []byte{}, Failure
+	}
+	data := buf.Peek(length)
+	buf.Drain(length)
+	return data, Success
 }
 
 func readStringBySize(buf types.IoBuffer, length int64) (string, DecodeStatus) {
