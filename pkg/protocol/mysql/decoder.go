@@ -216,7 +216,7 @@ func (d *DecoderImpl) parseMessage(data types.IoBuffer, seq uint8, length uint32
 		d.Callbacks.OnCommandResponse(commandResp)
 	case Req:
 		command := &Command{}
-		command.decode(data, seq, length)
+		command.decode(data, seq, int(length))
 		d.Callbacks.OnCommand(command)
 	case Resync:
 		// re-sync to MYSQL_REQ state

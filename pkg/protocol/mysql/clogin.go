@@ -104,11 +104,13 @@ func (cl *ClientLogin) parseMessageSsl(buffer types.IoBuffer) DecodeStatus {
 		log.DefaultLogger.Debugf("error when parsing max packet length of client ssl message")
 		return Failure
 	}
+	cl.setMaxPacket(maxPacket)
 
 	if charset, status = readUint8(buffer); status != Success {
 		log.DefaultLogger.Debugf("error when parsing character of client ssl message")
 		return Failure
 	}
+	cl.setCharset(charset)
 
 	if skipBytes(buffer, UNSET_BYTES) != Success {
 		log.DefaultLogger.Debugf("error when parsing reserved bytes of client ssl message")
@@ -119,15 +121,14 @@ func (cl *ClientLogin) parseMessageSsl(buffer types.IoBuffer) DecodeStatus {
 
 func (cl *ClientLogin) parseMessage41(buffer types.IoBuffer) DecodeStatus {
 	var (
-		total      int
-		extCap     uint16
-		maxPacket  uint32
-		charset    uint8
-		unsetBytes int64
-		userName   string
-		authLen    uint64
-		authResp   []uint8
-		status     DecodeStatus
+		total     int
+		extCap    uint16
+		maxPacket uint32
+		charset   uint8
+		userName  string
+		authLen   uint64
+		authResp  []uint8
+		status    DecodeStatus
 	)
 
 	total = buffer.Len()
@@ -136,16 +137,18 @@ func (cl *ClientLogin) parseMessage41(buffer types.IoBuffer) DecodeStatus {
 		return Failure
 	}
 	cl.setExtendedClientCap(extCap)
+
 	if maxPacket, status = readUint32(buffer); status != Success {
 		log.DefaultLogger.Debugf("error when parsing max packet length of client login message")
 		return Failure
-
 	}
+	cl.setMaxPacket(maxPacket)
 
 	if charset, status = readUint8(buffer); status != Success {
 		log.DefaultLogger.Debugf("error when parsing charset of client login message")
 		return Failure
 	}
+	cl.setCharset(charset)
 
 	if status = skipBytes(buffer, UNSET_BYTES); status != Success {
 		log.DefaultLogger.Debugf("error when skipping bytes of client login message")
@@ -156,6 +159,7 @@ func (cl *ClientLogin) parseMessage41(buffer types.IoBuffer) DecodeStatus {
 		log.DefaultLogger.Debugf("error when parsing username of client login message")
 		return Failure
 	}
+	cl.setUsername(userName)
 
 	if cl.clientCap&CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA == 1 {
 		if authLen, status = readLengthEncodedInteger(buffer); status != Success {
@@ -167,6 +171,7 @@ func (cl *ClientLogin) parseMessage41(buffer types.IoBuffer) DecodeStatus {
 			log.DefaultLogger.Debugf("error when parsing auth response of client login message")
 			return Failure
 		}
+		cl.setAuthResp(authResp)
 
 	} else if cl.clientCap&CLIENT_SECURE_CONNECTION == 1 {
 		var al uint8
@@ -174,10 +179,12 @@ func (cl *ClientLogin) parseMessage41(buffer types.IoBuffer) DecodeStatus {
 			log.DefaultLogger.Debugf("error when parsing length of auth response of client login message")
 			return Failure
 		}
-		if authResp, status = readVectorBySize(buffer, int(authLen)); status != Success {
+		if authResp, status = readVectorBySize(buffer, int(al)); status != Success {
 			log.DefaultLogger.Debugf("error when parsing auth response of client login message")
 			return Failure
 		}
+		cl.setAuthResp(authResp)
+
 	} else {
 		if _, status = readVectorBySize(buffer, len(authResp)); status != Success {
 			log.DefaultLogger.Debugf("error when parsing auth response of client login message")
@@ -198,6 +205,7 @@ func (cl *ClientLogin) parseMessage41(buffer types.IoBuffer) DecodeStatus {
 			log.DefaultLogger.Debugf("error when parsing auth plugin name of client login message")
 			return Failure
 		}
+		cl.setAuthPluginName(authPluginName)
 	}
 
 	var kvsLen uint64
@@ -252,22 +260,27 @@ func (cl *ClientLogin) parseMessage320(buffer types.IoBuffer, remainLen uint32) 
 		log.DefaultLogger.Debugf("error when parsing max packet length of client login message")
 		return Failure
 	}
+	cl.setMaxPacket(maxPacket)
 
 	if userName, status = readString(buffer); status != Success {
 		log.DefaultLogger.Debugf("error when parsing username of client login message")
 		return Failure
 	}
+	cl.setUsername(userName)
 
 	if cl.clientCap&CLIENT_CONNECT_WITH_DB == 1 {
 		if authResp, status = readVectorBySize(buffer, len(cl.authResp)); status != Success {
 			log.DefaultLogger.Debugf("error when parsing auth response of client login message")
 			return Failure
 		}
+		cl.setAuthResp(authResp)
 
 		if db, status = readString(buffer); status != Success {
 			log.DefaultLogger.Debugf("error when parsing db name of client login message")
 			return Failure
 		}
+		cl.setDb(db)
+
 	} else {
 		var comsumedLen int = originLen - buffer.Len()
 		if authResp, status = readVectorBySize(buffer, int(remainLen)-comsumedLen); status != Success {
